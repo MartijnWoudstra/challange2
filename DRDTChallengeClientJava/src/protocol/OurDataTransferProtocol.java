@@ -7,8 +7,8 @@ import java.util.Arrays;
 public class OurDataTransferProtocol extends IRDTProtocol {
 
     // change the following as you wish:
-    static final int HEADERSIZE=8;   // number of header bytes in each packet
-    static final int DATASIZE=128;   // max. number of user data bytes in each packet
+    static final int HEADERSIZE=2;   // number of header bytes in each packet
+    static final int DATASIZE=24;   // max. number of user data bytes in each packet
 
     @Override
     public void sender() {
@@ -69,12 +69,13 @@ public class OurDataTransferProtocol extends IRDTProtocol {
 
             // try to receive a packet from the network layer
             Integer[] packet = getNetworkLayer().receivePacket();
+           
 
             // if we indeed received a packet
             if (packet != null) {
 
                 // tell the user
-                System.out.println("Received packet, length="+packet.length+"  first byte="+packet[0] );
+                System.out.println("Received packet, length="+packet.length+"  first byte="+packet[0] + " last header=" + packet[1] );
 
                 // append the packet's data part (excluding the header) to the fileContents array, first making it larger
                 int oldlength=fileContents.length;
@@ -83,7 +84,10 @@ public class OurDataTransferProtocol extends IRDTProtocol {
                 System.arraycopy(packet, HEADERSIZE, fileContents, oldlength, datalen);
 
                 // and let's just hope the file is now complete
-                stop=true;
+                
+                if (packet[0] == packet[1]) {
+					stop = true;
+				}
 
             }else{
                 // wait ~10ms (or however long the OS makes us wait) before trying again
@@ -94,7 +98,9 @@ public class OurDataTransferProtocol extends IRDTProtocol {
                 }
             }
         }
-
+        
+        System.out.println("Alles ontvangen!!");
+        
         // write to the output file
         Utils.setFileContents(fileContents, getFileID());
     }
