@@ -17,7 +17,7 @@ import java.io.InputStream;
 public class Program {
 
 	// Change to your group number (use your student number)
-	private static int groupId = 1525794;
+	private static int groupId = 1730029;//1525794
 
 	// Change to your group password (doesn't matter what it is,
 	// as long as everyone in the group uses the same string)
@@ -31,7 +31,7 @@ public class Program {
 	private static IRDTProtocol protocolImpl = new OurDataTransferProtocol();
 
 	// Challenge server address
-	private static String serverAddress = "netsys.student.utwente.nl";
+	private static String serverAddress = "netsys.student.utwente.nl";// 130.89.137.121
 
 	// Challenge server port
 	private static int serverPort = 8003;
