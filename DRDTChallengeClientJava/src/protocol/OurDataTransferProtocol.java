@@ -1,14 +1,16 @@
 package protocol;
 
-import client.Utils;
-
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
+import client.Utils;
 
 public class OurDataTransferProtocol extends IRDTProtocol {
 
     // change the following as you wish:
-    static final int HEADERSIZE=2;   // number of header bytes in each packet
-    static final int DATASIZE=24;   // max. number of user data bytes in each packet
+    static final int HEADERSIZE=4;   // number of header bytes in each packet
+    static final int DATASIZE=60;   // max. number of user data bytes in each packet
 
     @Override
     public void sender() {
@@ -71,7 +73,8 @@ public class OurDataTransferProtocol extends IRDTProtocol {
         // create the array that will contain the file contents
         // note: we don't know yet how large the file will be, so the easiest (but not most efficient)
         //   is to reallocate the array every time we find out there's more data
-        Integer[] fileContents = new Integer[0];
+        
+        Map<Integer, Integer[]> map = new HashMap<Integer, Integer[]>(); 
 
         // loop until we are done receiving the file
         boolean stop = false;
@@ -79,27 +82,38 @@ public class OurDataTransferProtocol extends IRDTProtocol {
 
             // try to receive a packet from the network layer
             Integer[] packet = getNetworkLayer().receivePacket();
-           
 
             // if we indeed received a packet
             if (packet != null) {
+            	
+                int packetNr = packet[0] + 255 * packet[1];
+                int totalPackets = packet[2] + 255 * packet[3];
+                
+                // ack versturen
+                Integer[] ack = new Integer[]{packetNr%255, packetNr/255};
+                System.out.println("ack: "+ packetNr + "--> " + ack[0] + " " + ack[1] );
+                try {
+                	getNetworkLayer().sendPacket(ack);
+                } catch (IllegalArgumentException e){
+                	e.printStackTrace();
+                }
 
                 // tell the user
-                System.out.println("Received packet, length="+packet.length+"  first byte="+packet[0] + " last header=" + packet[1] );
-
-                // append the packet's data part (excluding the header) to the fileContents array, first making it larger
-                int oldlength=fileContents.length;
-                int datalen= packet.length - HEADERSIZE;
-                fileContents = Arrays.copyOf(fileContents, oldlength+datalen);
-                System.arraycopy(packet, HEADERSIZE, fileContents, oldlength, datalen);
-
-                // and let's just hope the file is now complete
+                System.out.println("Received packet, length="+packet.length+"  first byte=" + packetNr + " last header=" + totalPackets );
                 
-                if (packet[0] == packet[1]) {
+                // Als het pakketje nog niet in de map zit moet deze worden toegevoegd
+                if (!map.containsKey(packetNr)) {
+                	 Integer[] newArray = new Integer[packet.length - HEADERSIZE];
+                     System.arraycopy(packet, HEADERSIZE, newArray, 0, packet.length - HEADERSIZE);
+                     map.put(packetNr, newArray);
+				}
+
+                // Als alle pakketjes ontvangen zijn moet het stoppen
+                if (everythingReceived(map, totalPackets)) {
 					stop = true;
 				}
 
-            }else{
+            } else {
                 // wait ~10ms (or however long the OS makes us wait) before trying again
                 try {
                     Thread.sleep(10);
@@ -109,9 +123,33 @@ public class OurDataTransferProtocol extends IRDTProtocol {
             }
         }
         
+        // Alle pakketjes zijn ontvangen, 
+        int destPos = 0;
+        Integer[] fileContents = new Integer[0];
+        int oldlength;
+		int datalen;
+		
+        for(Integer i : map.keySet()){
+        	datalen = map.get(i).length;
+        	oldlength = fileContents.length;
+        	fileContents = Arrays.copyOf(fileContents, oldlength+datalen);
+        	System.arraycopy(map.get(i), 0, fileContents, destPos, datalen);
+        	destPos += datalen;
+        }
+        
         System.out.println("Alles ontvangen!!");
         
         // write to the output file
         Utils.setFileContents(fileContents, getFileID());
     }
+
+	private boolean everythingReceived(Map<Integer, Integer[]> map, int nrOfPackets) {
+		for (int i = 0; i < nrOfPackets; i++) {
+			if (!map.containsKey(i)) {
+				System.out.println("Nog niet ontvangen: " + i);
+				return false;
+			}
+		}
+		return true;
+	}
 }
