@@ -17,7 +17,7 @@ import java.io.InputStream;
 public class Program {
 
 	// Change to your group number (use your student number)
-	private static int groupId = 1730029;//1525794
+	private static int groupId = 1525794;//1730029
 
 	// Change to your group password (doesn't matter what it is,
 	// as long as everyone in the group uses the same string)
@@ -25,7 +25,7 @@ public class Program {
 
 	// Choose ID of test file to transmit: 1, 2, 3, 4 or 5
 	// Sizes in bytes are: 248, 2085, 6267, 21067, 53228
-	private static int file = 1;
+	private static int file = 3;
 
 	// Change to your protocol implementation
 	private static IRDTProtocol protocolImpl = new OurDataTransferProtocol();

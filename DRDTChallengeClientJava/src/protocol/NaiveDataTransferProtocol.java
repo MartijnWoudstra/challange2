@@ -1,7 +1,8 @@
 package protocol;
 
+import client.Utils;
+
 import java.util.Arrays;
-import client.*;
 
 public class NaiveDataTransferProtocol extends IRDTProtocol {
 
@@ -48,9 +49,8 @@ public class NaiveDataTransferProtocol extends IRDTProtocol {
 
 	@Override
 	public void TimeoutElapsed(Object tag) {
-		int z=(Integer)tag;
+		int z = (Integer) tag;
 		// handle expiration of the timeout:
-		System.out.println("Timer expired with tag="+z);
 	}
 
 	@Override
