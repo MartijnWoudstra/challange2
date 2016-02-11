@@ -1,16 +1,34 @@
 package protocol;
 
+
+import client.Utils;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 import client.Utils;
+import java.util.List;
 
 public class OurDataTransferProtocol extends IRDTProtocol {
 
     // change the following as you wish:
     static final int HEADERSIZE=4;   // number of header bytes in each packet
     static final int DATASIZE=60;   // max. number of user data bytes in each packet
+
+    private int header;
+    private int headerPartTwo;
+    int totalHeader;
+    private int totalAmountOfPacketsPartTwo;
+    List<Integer> acked;
+    WaitThread wt;
+    Integer[][] buffer;
+
+    public OurDataTransferProtocol() {
+        acked = new ArrayList<Integer>();
+        wt = new WaitThread(this);
+    }
+
 
     @Override
     public void sender() {
@@ -25,45 +43,108 @@ public class OurDataTransferProtocol extends IRDTProtocol {
         // create a new packet of appropriate size
         // write something random into the header byte
         boolean finished = false;
-        int header = 0;
-        int amount = ((int)Math.ceil(fileContents.length / DATASIZE));
-        System.out.println(amount);
+        header = 0;
+        headerPartTwo = 0;
+        int totalAmountOfPackets = ((int) Math.ceil(fileContents.length / DATASIZE));
+        totalAmountOfPacketsPartTwo = (int)totalAmountOfPackets / 255;
+        totalAmountOfPackets = totalAmountOfPackets - totalAmountOfPacketsPartTwo * 255;
+        buffer = new Integer[totalAmountOfPacketsPartTwo * 255 + totalAmountOfPackets + 2][];
+        Thread t = new Thread(wt);
+        t.start();
 
-        while(!finished){
-            int datalen = Math.min(DATASIZE, fileContents.length - filePointer);
-            Integer[] pkt = new Integer[HEADERSIZE + datalen];
-            pkt[0] = header;
-            header++;
-            pkt[1] = amount;
-            System.arraycopy(fileContents, filePointer, pkt, HEADERSIZE, datalen);
-            filePointer += datalen;
-            getNetworkLayer().sendPacket(pkt);
-            System.out.println("Sent one packet with header="+pkt[0] + " and data " + pkt[1] + " as first data");
-            if(filePointer == fileContents.length)
-                finished = true;
+        SendAllPackets(fileContents, filePointer, finished,totalAmountOfPackets, totalAmountOfPacketsPartTwo);
+
+        while (notAllAcked()){
+            try {
+                Thread.sleep(100);
+                handleAcks();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
+        System.exit(1);
+    }
 
+    private void SendAllPackets(Integer[] fileContents, int filePointer, boolean finished, int totalAmountOfPackets, int totalAmountOfPacketsPartTwo) {
+        while (!finished) {
+            //Length of one data packet
+            int dataLength = Math.min(DATASIZE, fileContents.length - filePointer);
+            Integer[] pkt = new Integer[HEADERSIZE + dataLength];
+            //Set index 0 to header
+            pkt[0] = header;
+            pkt[1] = headerPartTwo;
+            //set index 1 to total amount of packets to be send
+            pkt[2] = totalAmountOfPackets;
+            pkt[3] = totalAmountOfPacketsPartTwo;
+            System.arraycopy(fileContents, filePointer, pkt, HEADERSIZE, dataLength);
+            //store packet in buffer, for resending
+            System.out.println("totalheader" + totalHeader);
+            System.out.println("array length" + buffer.length);
+            buffer[headerPartTwo * 255 + header] = pkt;
+            filePointer += dataLength;
+            //send packet
+            getNetworkLayer().sendPacket(pkt);
+            //set time-out
+            Utils.Timeout.SetTimeout(20000, this, totalHeader);
+            System.out.println("Sent one packet with header=" + pkt[0] + " and data " + pkt[1] + " as first data");
+            if(!(header + headerPartTwo * 255 == totalAmountOfPacketsPartTwo * 255 + totalAmountOfPackets)){
+                if(header == 255){
+                    header = 0;
+                    headerPartTwo++;
+                    totalHeader++;
+                } else {
+                    header++;
+                    totalHeader++;
+                }
+            }
+            else {
+                finished = true;
+            }
+        }
+    }
 
+    private void handleAcks() {
+        boolean finished = false;
+        Integer[] reveicedPacket;
+        Integer[] packet;
 
-        // schedule a timer for 1000 ms into the future, just to show how that works:
-        client.Utils.Timeout.SetTimeout(1000, this, 28);
-        // and loop and sleep; you may use this loop to check for incoming acks...
-        boolean stop = false;
-        while (!stop) {
+        while(!finished) {
+            if((reveicedPacket = getNetworkLayer().receivePacket()) != null) {
+                packet = reveicedPacket;
+                System.out.println("Received ack for " + packet[0]  + " and second is "+ (packet[1] * 255));
+                acked.add(packet[0] + (packet[1] * 255));
+            }
             try {
                 Thread.sleep(10);
             } catch (InterruptedException e) {
-                stop = true;
+                e.printStackTrace();
             }
         }
+    }
 
+    private boolean notAllAcked() {
+        for (int i = 0; i < totalHeader; i++) {
+            if(!wt.acked.contains(i)){
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
     public void TimeoutElapsed(Object tag) {
-        int z=(Integer)tag;
-        // handle expiration of the timeout:
-        System.out.println("Timer expired with tag="+z);
+        int z =(Integer)tag;
+        if(!acked.contains(z)) {
+            resend(z);
+        }
+    }
+
+    private void resend(int i) {
+        if(i < buffer.length && buffer[i] != null) {
+            System.out.println("Resend " + i);
+            getNetworkLayer().sendPacket(buffer[i]);
+            client.Utils.Timeout.SetTimeout(18000, this, i);
+        }
     }
 
     @Override
