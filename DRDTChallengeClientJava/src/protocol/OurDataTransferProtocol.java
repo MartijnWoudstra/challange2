@@ -21,20 +21,30 @@ public class OurDataTransferProtocol extends IRDTProtocol {
         int filePointer = 0;
 
         // create a new packet of appropriate size
-        int datalen = Math.min(DATASIZE, fileContents.length - filePointer);
-        Integer[] pkt = new Integer[HEADERSIZE + datalen];
         // write something random into the header byte
-        pkt[0] = 123;
-        // copy databytes from the input file into data part of the packet, i.e., after the header
-        System.arraycopy(fileContents, filePointer, pkt, HEADERSIZE, datalen);
+        boolean finished = false;
+        int header = 0;
+        int amount = ((int)Math.ceil(fileContents.length / DATASIZE));
+        System.out.println(amount);
 
-        // send the packet to the network layer
-        getNetworkLayer().sendPacket(pkt);
-        System.out.println("Sent one packet with header="+pkt[0]);
+        while(!finished){
+            int datalen = Math.min(DATASIZE, fileContents.length - filePointer);
+            Integer[] pkt = new Integer[HEADERSIZE + datalen];
+            pkt[0] = header;
+            header++;
+            pkt[1] = amount;
+            System.arraycopy(fileContents, filePointer, pkt, HEADERSIZE, datalen);
+            filePointer += datalen;
+            getNetworkLayer().sendPacket(pkt);
+            System.out.println("Sent one packet with header="+pkt[0] + " and data " + pkt[1] + " as first data");
+            if(filePointer == fileContents.length)
+                finished = true;
+        }
+
+
 
         // schedule a timer for 1000 ms into the future, just to show how that works:
         client.Utils.Timeout.SetTimeout(1000, this, 28);
-
         // and loop and sleep; you may use this loop to check for incoming acks...
         boolean stop = false;
         while (!stop) {

@@ -17,7 +17,11 @@ import java.io.InputStream;
 public class Program {
 
 	// Change to your group number (use your student number)
+<<<<<<< HEAD
 	private static int groupId = 1730029;//1525794
+=======
+	private static int groupId = 1730029;
+>>>>>>> 498a1e3c2abe1ff6e1e2b7a6622b9b6500218137
 
 	// Change to your group password (doesn't matter what it is,
 	// as long as everyone in the group uses the same string)
