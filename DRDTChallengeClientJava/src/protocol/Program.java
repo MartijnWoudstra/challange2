@@ -28,7 +28,7 @@ public class Program {
 	private static int file = 1;
 
 	// Change to your protocol implementation
-	private static IRDTProtocol protocolImpl = new NaiveDataTransferProtocol();
+	private static IRDTProtocol protocolImpl = new OurDataTransferProtocol();
 
 	// Challenge server address
 	private static String serverAddress = "netsys.student.utwente.nl";
