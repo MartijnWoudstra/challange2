@@ -42,7 +42,7 @@ public class Utils {
 	 * @return the array of integers, representing the contents of the file to transmit
 	 */
 	public static Integer[] getFileContents(int id) {
-		File fileToTransmit = new File(String.format("rdtcInput%d.png", id));
+		File fileToTransmit = new File(String.format("resources/rdtcInput%d.png", id));
 		try (FileInputStream fileStream = new FileInputStream(fileToTransmit)) {
 			Integer[] fileContents = new Integer[(int) fileToTransmit.length()];
 
